@@ -71,7 +71,7 @@ def ws2812():
 
 
 
-def rgb(r, g, b):
+def grb(r, g, b):
     """Calculate and return 32-bit value for RGB Neopixel colour in
     format 0GRB.
     """
@@ -80,14 +80,23 @@ def rgb(r, g, b):
 
 
 
-def rgb_at_luma(rgb, luma):
-    """Return an RGB value (as returned by rgb()) with the brightness
+def grb_to_rgb(grb):
+    """Convert a 0GRB format colour into RGB format for printing in a
+    more conventional format.
+    """
+
+    return ((grb & 0xff00) << 8) | ((grb & 0xff0000) >> 8) | (grb & 0xff)
+
+
+
+def color_at_luma(color, luma):
+    """Return a colour value (in GRB or RGB format) with the brightness
     scaled to the specified luma value in the range 0-255.
     """
 
-    return ((int((rgb & 0xff0000) * luma // 255) & 0xff0000)
-            | (int((rgb & 0xff00) * luma // 255) & 0xff00)
-            | (int((rgb & 0xff) * luma // 255) & 0xff))
+    return ((int((color & 0xff0000) * luma // 255) & 0xff0000)
+            | (int((color & 0xff00) * luma // 255) & 0xff00)
+            | (int((color & 0xff) * luma // 255) & 0xff))
 
 
 
@@ -162,7 +171,7 @@ class Bar(object):
             return 0    # =BLACK
         intensity = int(((max(self._halfwidth - distance, 0) / self._halfwidth)
                          ** BAR_FALLOFF) * 255)
-        return rgb_at_luma(self._rgb, intensity)
+        return color_at_luma(self._rgb, intensity)
 
     def min(self):
         return self._pos - self._halfwidth
@@ -183,7 +192,7 @@ class NeopixelBars(NeopixelStrip):
 
     def __repr__(self):
         return ("NeopixelBars(%s)"
-                % ", ".join(("0x%06x" % c) for c in self._colors))
+                    % ", ".join(("0x%06x" % grb_to_rgb(c)) for c in self._colors))
 
     def reinit(self):
         super().reinit()
@@ -197,7 +206,7 @@ class NeopixelBars(NeopixelStrip):
             color = 0
             for bar in self._bars:
                 color |= bar.color_at(led - self._min)
-            self._display[led] = rgb_at_luma(color, self._brightness)
+            self._display[led] = color_at_luma(color, self._brightness)
         return self._display
 
     def move(self):
@@ -231,7 +240,8 @@ class NeopixelStripes(NeopixelStrip):
         self.reinit()
 
     def __repr__(self):
-        return "NeopixelStripes(0x%06x, 0x%06x)" % (self._color1, self._color2)
+        return ("NeopixelStripes(0x%06x, 0x%06x)"
+                    % (grb_to_rgb(self._color1), grb_to_rgb(self._color2)))
 
     def reinit(self):
         super().reinit()
@@ -243,9 +253,9 @@ class NeopixelStripes(NeopixelStrip):
 
     def _next_color(self):
         if self._offset < self._width:
-            color = rgb_at_luma(self._color1, self._brightness)
+            color = color_at_luma(self._color1, self._brightness)
         else:
-            color = rgb_at_luma(self._color2, self._brightness)
+            color = color_at_luma(self._color2, self._brightness)
         self._offset += 1
         if self._offset >= self._width * 2:
             self._offset = 0
@@ -266,14 +276,14 @@ class NeopixelStripes(NeopixelStrip):
 
 # named colour values
 
-BLACK = rgb(0, 0, 0)
-BLUE = rgb(0, 0, 255)
-WHITE = rgb(255, 255, 255)
-RED = rgb(255, 0, 0)
-GREEN = rgb(0, 255, 0)
-CYAN = rgb(0, 255, 255)
-YELLOW = rgb(255, 255, 0)
-DARK_GREEN = rgb(0, 63, 0)
+BLACK = grb(0, 0, 0)
+BLUE = grb(0, 0, 255)
+WHITE = grb(255, 255, 255)
+RED = grb(255, 0, 0)
+GREEN = grb(0, 255, 0)
+CYAN = grb(0, 255, 255)
+YELLOW = grb(255, 255, 0)
+DARK_GREEN = grb(0, 63, 0)
 
 
 
