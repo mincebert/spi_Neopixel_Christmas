@@ -38,7 +38,6 @@ led_expired = Pin(15, Pin.OUT)
 
 
 MAX_BARS = 3
-WIDTH = 8
 BAR_FALLOFF = 2
 BRIGHTNESS = 15
 MIN_TIME = 10
@@ -111,6 +110,9 @@ class NeopixelStrip(object):
         self._len = leds + overscan * 2
         self._display = array("I", [0 for _ in range(self._len)])
 
+    def __repr__(self):
+        print("NeopixelStrip()")
+
     def reinit(self):
         self._finish = False
 
@@ -179,6 +181,10 @@ class NeopixelBars(NeopixelStrip):
         self._max_bars = max_bars
         self.reinit()
 
+    def __repr__(self):
+        return ("NeopixelBars(%s)"
+                % ", ".join(("0x%06x" % c) for c in self._colors))
+
     def reinit(self):
         super().reinit()
         self._bars = []
@@ -223,6 +229,9 @@ class NeopixelStripes(NeopixelStrip):
         self._init_width = width
         self._init_wait = wait
         self.reinit()
+
+    def __repr__(self):
+        return "NeopixelStripes(0x%06x, 0x%06x)" % (self._color1, self._color2)
 
     def reinit(self):
         super().reinit()
@@ -304,6 +313,7 @@ displays = bars_strips + stripes_strips
 while True:
     led_expired.value(0)
     display = choice(displays)
+    print("Displaying:", display)
     display.reinit()
     expire_at = time() + randint(MIN_TIME, MAX_TIME)
     while True:
