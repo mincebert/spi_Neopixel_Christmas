@@ -1,5 +1,6 @@
-# spi_Neopixel_Christmas2.py
-# 2022-12-19
+# spi_Neopixel_Christmas3.py
+# 2023-12-12
+
 
 from array import array
 from utime import sleep_ms
@@ -8,24 +9,60 @@ from rp2 import PIO, StateMachine, asm_pio
 from random import choice, randint, uniform
 from time import time
 
-led_onboard = Pin("LED", Pin.OUT)	# onboard LED flashes whilst cycling
-led_expired = Pin(15, Pin.OUT)		# flashes when sequence has expired
 
-# Configure the number of WS2812 LEDs
-LEDS = 288		# number of LEDs in strip (reduce to save power)
-OVERSCAN = 10
+
+# --- constants ---
+
+
+
+# NEOPIXEL STRIP PARAMETERS
+
+
+# total number of visible LEDs
+VISIBLE_LEDS = 288
+
+# number of overscan LEDs when building affects (so things slide onto
+# the end nicely)
+OVERSCAN_LEDS = 10
+
+
+
+# LED INDICATORS
+
+
+# LED to flash rapidly whilst script is running
+led_running = Pin("LED", Pin.OUT)
+
+# LED to flash when current effect is expiring and solid when expired
+led_expired = Pin(15, Pin.OUT)
+
+
 MAX_BARS = 3
 WIDTH = 8
-FALLOFF = 2
+BAR_FALLOFF = 2
 BRIGHTNESS = 15
 MIN_TIME = 10
 MAX_TIME = 20
 
-@asm_pio(sideset_init=PIO.OUT_LOW, out_shiftdir=PIO.SHIFT_LEFT, autopull=True, pull_thresh=24)
+
+
+# --- functions ---
+
+
+
+@asm_pio(sideset_init=PIO.OUT_LOW, out_shiftdir=PIO.SHIFT_LEFT, autopull=True,
+         pull_thresh=24)
+
 def ws2812():
+    """Programmed IO (PIO) function for signalling WS2812 Neopixel strip
+    over SPI bus.
+    """
+
+    # timings for various steps
     T1 = 2
     T2 = 5
     T3 = 3
+
     label("bitloop")
     out(x, 1)               .side(0)   [T3 - 1]
     jmp(not_x, "do_zero")   .side(1)   [T1 - 1]
@@ -33,62 +70,38 @@ def ws2812():
     label("do_zero")
     nop()                   .side(0)   [T2 - 1]
 
+
+
 def rgb(r, g, b):
+    """Calculate and return 32-bit value for RGB Neopixel colour in
+    format 0GRB.
+    """
+
     return (g << 16) | (r << 8) | b
 
+
+
 def rgb_at_luma(rgb, luma):
+    """Return an RGB value (as returned by rgb()) with the brightness
+    scaled to the specified luma value in the range 0-255.
+    """
+
     return ((int((rgb & 0xff0000) * luma // 255) & 0xff0000)
             | (int((rgb & 0xff00) * luma // 255) & 0xff00)
             | (int((rgb & 0xff) * luma // 255) & 0xff))
 
-class RGB(object):
-    def __init__(self, r, g, b):
-        self._r, self._g, self._b = int(r), int(g), int(b)
-        
-    def __int__(self):
-        return (self._g << 16) | (self._r << 8) | self._b
 
-    def __repr__(self):
-        return "<R%02X/G%02X/B%02X>" % (self._r, self._g, self._b)
 
-    def __or__(self, value):
-        return RGB(self._r or value._r, self._g or value._g, self._b or value._b)
+# --- classes ---
 
-    def at_luma(self, l):
-        return RGB(self._r * l // 255, self._g * l // 255, self._b * l // 255)
 
-BLACK = rgb(0, 0, 0)
-BLUE = rgb(0, 0, 255)
-WHITE = rgb(255, 255, 255)
-RED = rgb(255, 0, 0)
-GREEN = rgb(0, 255, 0)
-CYAN = rgb(0, 255, 255)
-YELLOW = rgb(255, 255, 0)
-DARK_GREEN = rgb(0, 63, 0)
 
-class Bar(object):
-    def __init__(self, rgb=WHITE, width=4, speed=1, pos=0):
-        self._rgb = rgb
-        self._halfwidth = width // 2
-        self._speed = speed
-        self._pos = pos
+class NeopixelStrip(object):
+    """Represents a Neopixel strip.
+    """
 
-    def move(self):
-        self._pos += self._speed
-
-    def color_at(self, p):
-        distance = abs(int(self._pos) - p)
-        if distance > self._halfwidth:
-            return BLACK
-        intensity = int(((max(self._halfwidth - distance, 0) / self._halfwidth) ** FALLOFF) * 255)
-        #intensity = max(self._halfwidth - distance, 0) * 255 // self._halfwidth
-        return rgb_at_luma(self._rgb, intensity) # .at_luma(intensity)
-    
-    def min(self):
-        return self._pos - self._halfwidth
-
-class Display(object):
-    def __init__(self, sm, leds=LEDS, overscan=OVERSCAN, brightness=BRIGHTNESS):
+    def __init__(self, sm, leds=VISIBLE_LEDS, overscan=OVERSCAN_LEDS,
+                 brightness=BRIGHTNESS):
         self._sm = sm
         self._leds = leds
         self._brightness = brightness
@@ -106,10 +119,10 @@ class Display(object):
 
     def move(self):
         pass
-    
+
     def set_finish(self):
         self._finish = True
-        
+
     def is_finished(self):
         return True
 
@@ -125,13 +138,42 @@ class Display(object):
         self.move()
         self.wait()
 
-class BarsDisplay(Display):
+
+
+# bar effect classes
+
+
+
+class Bar(object):
+    def __init__(self, rgb, width=4, speed=1, pos=0):
+        self._rgb = rgb
+        self._halfwidth = width // 2
+        self._speed = speed
+        self._pos = pos
+
+    def move(self):
+        self._pos += self._speed
+
+    def color_at(self, p):
+        distance = abs(int(self._pos) - p)
+        if distance > self._halfwidth:
+            return 0    # =BLACK
+        intensity = int(((max(self._halfwidth - distance, 0) / self._halfwidth)
+                         ** BAR_FALLOFF) * 255)
+        return rgb_at_luma(self._rgb, intensity)
+
+    def min(self):
+        return self._pos - self._halfwidth
+
+
+
+class NeopixelBars(NeopixelStrip):
     """Bars are short lines which whizz along the strip in different
     colours and at different speeds.  When they overlap the colours are
     added together.
     """
 
-    def __init__(self, sm, colors=[[WHITE, BLACK]], max_bars=MAX_BARS, **kwargs):
+    def __init__(self, sm, colors, max_bars=MAX_BARS, **kwargs):
         super().__init__(sm, **kwargs)
         self._colors = colors
         self._max_bars = max_bars
@@ -167,19 +209,21 @@ class BarsDisplay(Display):
     def add_bar(self, bar):
         self._bars.append(bar)
 
-class StripesDisplay(Display):
-    """Stripes are alternating patterns of solid colour that slide
-    along.
+
+
+class NeopixelStripes(NeopixelStrip):
+    """Stripes are alternating patterns of solid colour that move along
+    the Neopixel strip.
     """
 
-    def __init__(self, sm, color1=RED, color2=WHITE, width=None, wait=None, **kwargs):
+    def __init__(self, sm, color1, color2, width=None, wait=None, **kwargs):
         super().__init__(sm, **kwargs)
         self._color1 = color1
         self._color2 = color2
         self._init_width = width
         self._init_wait = wait
         self.reinit()
-        
+
     def reinit(self):
         super().reinit()
         self._width = self._init_width or randint(6, 16)
@@ -201,11 +245,34 @@ class StripesDisplay(Display):
     def move(self):
         self._display[:-1] = self._display[1:]
         self._display[-1] = self._next_color()
-        
+
     def wait(self):
         sleep_ms(self._wait)
 
-# Create the StateMachien with ws2812 program, outputting on Pin(0).
+
+
+# --- colour constants ---
+
+
+
+# named colour values
+
+BLACK = rgb(0, 0, 0)
+BLUE = rgb(0, 0, 255)
+WHITE = rgb(255, 255, 255)
+RED = rgb(255, 0, 0)
+GREEN = rgb(0, 255, 0)
+CYAN = rgb(0, 255, 255)
+YELLOW = rgb(255, 255, 0)
+DARK_GREEN = rgb(0, 63, 0)
+
+
+
+# --- main ---
+
+
+
+# create the StateMachine with ws2812 program, outputting on Pin(0)
 sm = StateMachine(0, ws2812, freq=8000000, sideset_base=Pin(0))
 sm.active(1)
 
@@ -217,8 +284,9 @@ BARS_COLORS = [
     # [DARK_GREEN, YELLOW],
     # [RED, GREEN, BLUE],
     ]
-bars_displays = [
-    BarsDisplay(sm, colors=colors, brightness=191) for colors in BARS_COLORS]
+
+bars_strips = [
+    NeopixelBars(sm, colors=colors, brightness=191) for colors in BARS_COLORS]
 
 STRIPES_COLORS = [
     [WHITE, BLUE],
@@ -227,11 +295,11 @@ STRIPES_COLORS = [
     [RED, WHITE],
     [DARK_GREEN, YELLOW]
     ]
-stripes_displays = [
-    StripesDisplay(sm, color1=c1, color2=c2, brightness=31) for c1, c2 in STRIPES_COLORS]
 
-displays = bars_displays + stripes_displays
-#displays = displays[-1:]
+stripes_strips = [
+    NeopixelStripes(sm, color1=c1, color2=c2, brightness=31) for c1, c2 in STRIPES_COLORS]
+
+displays = bars_strips + stripes_strips
 
 while True:
     led_expired.value(0)
@@ -248,5 +316,5 @@ while True:
                 display.set_finish()
         elif remain < 5:
             led_expired.value(not remain % 2)
-        led_onboard.toggle()
+        led_running.toggle()
         display.cycle()
