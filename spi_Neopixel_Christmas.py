@@ -326,6 +326,7 @@ BARS_COLORS = [
 bars_strips = [
     NeopixelBars(sm, colors=colors, brightness=191) for colors in BARS_COLORS]
 
+
 STRIPES_COLORS = [
     [WHITE, BLUE],
     [GREEN, RED],
@@ -337,23 +338,27 @@ STRIPES_COLORS = [
 stripes_strips = [
     NeopixelStripes(sm, color1=c1, color2=c2, brightness=31) for c1, c2 in STRIPES_COLORS]
 
-displays = bars_strips + stripes_strips
+
+strips = bars_strips + stripes_strips
+
+
+print("spi_Neopixel_Christmas starting...")
 
 while True:
     led_expired.value(0)
-    display = choice(displays)
-    print("Displaying:", display)
-    display.reinit()
+    strip = choice(strips)
+    print("Displaying:", strip)
+    strip.reinit()
     expire_at = time() + randint(MIN_TIME, MAX_TIME)
     while True:
         remain = expire_at - time()
         if remain < 0:
-            if display.is_finished():
+            if strip.is_finished():
                 break
             else:
                 led_expired.value(1)
-                display.set_expired()
+                strip.set_expired()
         elif remain < 5:
             led_expired.value(not remain % 2)
         led_running.toggle()
-        display.cycle()
+        strip.cycle()
