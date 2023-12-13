@@ -105,7 +105,7 @@ def color_at_luma(color, luma):
 
 
 class NeopixelStrip(object):
-    """Represents a Neopixel strip.
+    """Abstract class for a Neopixel strip.
     """
 
     def __init__(self, sm, leds=VISIBLE_LEDS, overscan=OVERSCAN_LEDS,
@@ -120,30 +120,50 @@ class NeopixelStrip(object):
         self._display = array("I", [0 for _ in range(self._len)])
 
     def __repr__(self):
+        "Method for debugging to print out the strip effect type."
         print("NeopixelStrip()")
 
     def reinit(self):
-        self._finish = False
+        """Reset the effect for a new display.  This method must also
+        be called before an effect is used for the first time.
+        """
+        self._expired = False
 
     def render(self):
+        "Renders the current state of the effect into the display buffer."
         pass
 
     def move(self):
+        "Animate the display by one 'frame'."
         pass
 
-    def set_finish(self):
-        self._finish = True
+    def set_expired(self):
+        """Mark that the effect has expired, which means we want it to
+        clear down, ready for the next effect.  This could indicate
+        that no new items are to be created on the display, for
+        example.
+        """
+        self._expired = True
 
     def is_finished(self):
+        """Returns if we can move onto the next effect.  Some effects
+        may return False here for a few frames to allow something to
+        move out of the visible area.
+        """
         return True
 
     def wait(self):
+        "Called between frames to add on any required delay."
         pass
 
     def display(self):
+        "Render the current display buffer onto the Neopixel strip."
         self._sm.put(self._display[self._min:self._max], 8)
 
     def cycle(self):
+        """Process a complete frame cycle of the effect: render it,
+        display it, move onto the next frame and then wait.
+        """
         self.render()
         self.display()
         self.move()
@@ -188,7 +208,6 @@ class NeopixelBars(NeopixelStrip):
         super().__init__(sm, **kwargs)
         self._colors = colors
         self._max_bars = max_bars
-        self.reinit()
 
     def __repr__(self):
         return ("NeopixelBars(%s)"
@@ -213,7 +232,7 @@ class NeopixelBars(NeopixelStrip):
         for bar in self._bars:
             bar.move()
         self._bars = [bar for bar in self._bars if bar.min() <= self._max]
-        if (not self._finish) and (self.num_bars() < self._max_bars):
+        if (not self._expired) and (self.num_bars() < self._max_bars):
             if randint(0, 10) > 8:
                 width = randint(8, 16)
                 self.add_bar(Bar(choice(self._colors), width=width, speed=choice([0.5, 1, 2]), pos=-width // 2))
@@ -333,7 +352,7 @@ while True:
                 break
             else:
                 led_expired.value(1)
-                display.set_finish()
+                display.set_expired()
         elif remain < 5:
             led_expired.value(not remain % 2)
         led_running.toggle()
