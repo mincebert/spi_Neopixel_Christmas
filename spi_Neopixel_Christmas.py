@@ -3,6 +3,7 @@
 
 
 from array import array
+from math import ceil, floor
 from utime import sleep_ms
 from machine import Pin
 from rp2 import PIO, StateMachine, asm_pio
@@ -182,6 +183,9 @@ class Bar(object):
         self._speed = speed
         self._pos = pos
 
+    def __repr__(self):
+        return "Bar(0x%06x,%d,%d)" % (grb_to_rgb(self._rgb), self._pos, self._halfwidth)
+
     def move(self):
         self._pos += self._speed
 
@@ -195,6 +199,9 @@ class Bar(object):
 
     def min(self):
         return self._pos - self._halfwidth
+
+    def max(self):
+        return self._pos + self._halfwidth
 
 
 
@@ -222,11 +229,11 @@ class NeopixelBars(NeopixelStrip):
 
     def render(self):
         for led in range(self._min, self._max):
-            color = 0
-            for bar in self._bars:
-                color |= bar.color_at(led - self._min)
-            self._display[led] = color_at_luma(color, self._brightness)
-        return self._display
+            self._display[led] = 0
+
+        for bar in self._bars:
+            for led in range(max(floor(bar.min()), 0), min(ceil(bar.max()), VISIBLE_LEDS - 1)):
+                self._display[led] |= color_at_luma(bar.color_at(led), self._brightness)
 
     def move(self):
         for bar in self._bars:
@@ -339,7 +346,7 @@ stripes_strips = [
     NeopixelStripes(sm, color1=c1, color2=c2, brightness=31) for c1, c2 in STRIPES_COLORS]
 
 
-strips = bars_strips + stripes_strips
+strips = bars_strips #+ stripes_strips
 
 
 print("spi_Neopixel_Christmas starting...")
