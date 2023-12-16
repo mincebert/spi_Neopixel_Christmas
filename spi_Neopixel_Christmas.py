@@ -228,11 +228,11 @@ class NeopixelBars(NeopixelStrip):
         return len(self._bars) == 0
 
     def render(self):
-        for led in range(self._min, self._max):
+        for led in range(0, self._len):
             self._display[led] = 0
 
         for bar in self._bars:
-            for led in range(max(floor(bar.min()), 0), min(ceil(bar.max()), VISIBLE_LEDS - 1)):
+            for led in range(max(floor(bar.min()), 0), min(ceil(bar.max()), self._len - 1)):
                 self._display[led] |= color_at_luma(bar.color_at(led), self._brightness)
 
     def move(self):
@@ -346,7 +346,7 @@ stripes_strips = [
     NeopixelStripes(sm, color1=c1, color2=c2, brightness=31) for c1, c2 in STRIPES_COLORS]
 
 
-strips = bars_strips #+ stripes_strips
+strips = bars_strips + stripes_strips
 
 
 print("spi_Neopixel_Christmas starting...")
