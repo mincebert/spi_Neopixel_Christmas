@@ -239,11 +239,17 @@ class NeopixelTrains(NeopixelStrip):
                     color_at_luma(train.color_at(led), self._brightness))
 
     def move(self):
+        # move the trains
         for train in self._trains:
             train.move()
+
+        # if a train has reached the end, remove it
         self._trains = [train for train in self._trains
                             if train.min() <= self._max]
+
+        # if we have fewer than the maximum number of trains and not expired...
         if (not self._expired) and (self.num_trains() < self._max_trains):
+            # ... there's a 2 in 11 chance we create a new train
             if randint(0, 10) > 8:
                 width = randint(8, 16)
                 self._trains.append(Train(choice(self._colors), width=width,
@@ -270,7 +276,6 @@ class NeopixelStripes(NeopixelStrip):
         self._color2 = color2
         self._init_width = width
         self._init_wait = wait
-        self.reinit()
 
     def __repr__(self):
         return ("NeopixelStripes(0x%06x, 0x%06x)"
@@ -303,6 +308,114 @@ class NeopixelStripes(NeopixelStrip):
 
 
 
+# RAIN EFFECT
+
+
+
+class RainDrop(object):
+    def __init__(self, pos, color, max_size):
+        self.pos = pos
+        self.color = color
+        self.max_size = max_size
+
+        self.current_size = 0
+        self.target_size = self.max_size
+
+
+    def __repr__(self):
+        return (
+            "RainDrop(%d, %06x, %d, %d)"
+                % (self.pos, grb_to_rgb(self.color), self.target_size,
+                   self.current_size))
+
+
+    def move(self):
+        # if we're smaller than target size, get bigger
+        if self.current_size < self.target_size:
+            self.current_size += 1
+
+            # if we're reached the largest size, the new target is 0
+            if self.current_size >= self.target_size:
+                self.target_size = 0
+
+        # the target is smaller - do that if we're bigger than 0
+        elif self.current_size > 0:
+            self.current_size -= 1
+
+
+    def finished(self):
+        # this drop is finished is we're shrinking and have reached 0
+        return (self.current_size == 0) and (self.target_size == 0)
+
+
+    def color_at_offset(self, offset):
+        return color_at_luma(
+                   self.color,
+                   self.current_size / self.max_size * 255)
+
+
+class NeopixelRain(NeopixelStrip):
+    """Rain is expanding and contracting bars of water meant to mimic
+    rain falling into a puddle.
+    """
+
+    def __init__(self, sm, max_drops, colors, max_size, *args, **kwargs):
+        super().__init__(sm, *args, **kwargs)
+        self._max_drops = max_drops
+        self._colors = colors
+        self._max_size = max_size
+
+    def __repr__(self):
+        return ("NeopixelRain(%d, %s, %d)"
+                    % (self._max_drops,
+                       ", ".join(("0x%06x" % grb_to_rgb(c))
+                                     for c in self._colors),
+                       self._max_size))
+
+    def reinit(self):
+        super().reinit()
+        self._drops = []
+
+    def move(self):
+        # animate the drops we have
+        for drop in self._drops:
+            drop.move()
+
+        # remove any drops that have finished
+        self._drops = [ d for d in self._drops if not d.finished() ]
+
+        # if we have fewer than max drops, add one if not expired
+        if ((not self._expired)
+            and (len(self._drops) < self._max_drops)
+            and (randint(0, 20) < 2)):
+
+            self._drops.append(RainDrop(
+                pos=randint(self._min, self._max),
+                color=choice(self._colors),
+                max_size=randint(5, self._max_size)))
+
+    def render(self):
+        for led in range(0, self._len):
+            self._display[led] = 0
+
+        for drop in self._drops:
+            for offset in range(0, drop.current_size - 1):
+                color = drop.color_at_offset(offset)
+                if (drop.pos - offset) >= self._min:
+                    self._display[drop.pos - offset] |= color
+                if (drop.pos + offset) <= self._max:
+                    self._display[drop.pos + offset] |= color
+
+
+    def is_finished(self):
+        return not self._drops
+
+
+    def wait(self):
+        sleep_ms(40)
+
+
+
 # --- colour constants ---
 
 
@@ -316,6 +429,7 @@ RED = grb(255, 0, 0)
 GREEN = grb(0, 255, 0)
 CYAN = grb(0, 255, 255)
 YELLOW = grb(255, 255, 0)
+MAGENTA = grb(255, 0, 255)
 DARK_GREEN = grb(0, 63, 0)
 
 
@@ -334,9 +448,7 @@ TRAINS_COLORS = [
     [RED, WHITE],
     [RED, GREEN],
     [RED, WHITE, BLUE],
-    # [DARK_GREEN, YELLOW],
-    # [RED, GREEN, BLUE],
-    ]
+]
 
 trains_strips = [
     NeopixelTrains(sm, colors=colors, brightness=191)
@@ -346,18 +458,29 @@ trains_strips = [
 STRIPES_COLORS = [
     [WHITE, BLUE],
     [GREEN, RED],
-    # [WHITE, BLACK],
     [RED, WHITE],
-    [DARK_GREEN, YELLOW]
-    ]
+    [DARK_GREEN, YELLOW],
+]
 
 stripes_strips = [
     NeopixelStripes(sm, color1=c1, color2=c2, brightness=31)
         for c1, c2 in STRIPES_COLORS]
 
 
+RAIN_COLORS = [
+    [CYAN],
+    [BLUE, CYAN],
+    [WHITE, CYAN],
+    [RED, YELLOW, DARK_GREEN, BLUE, CYAN, MAGENTA],
+]
+
+rain_strips = [
+    NeopixelRain(sm, brightness=191, max_drops=5, colors=c, max_size=12)
+        for c in RAIN_COLORS]
+
+
 # the strip effects we want to use are all of the ones set up
-strips = trains_strips + stripes_strips
+strips = trains_strips + stripes_strips + rain_strips
 
 
 print("spi_Neopixel_Christmas starting...")
