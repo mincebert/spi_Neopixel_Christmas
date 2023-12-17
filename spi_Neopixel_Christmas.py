@@ -116,7 +116,6 @@ class NeopixelStrip(object):
         self._brightness = brightness
         self._min = overscan
         self._max = leds + overscan
-        self._bars = []
         self._len = leds + overscan * 2
         self._display = array("I", [0 for _ in range(self._len)])
 
