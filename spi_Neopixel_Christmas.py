@@ -38,8 +38,8 @@ led_running = Pin("LED", Pin.OUT)
 led_expired = Pin(15, Pin.OUT)
 
 
-MAX_BARS = 3
-BAR_FALLOFF = 2
+MAX_TRAINS = 3
+TRAIN_FALLOFF = 2
 BRIGHTNESS = 15
 MIN_TIME = 10
 MAX_TIME = 20
@@ -172,11 +172,11 @@ class NeopixelStrip(object):
 
 
 
-# bar effect classes
+# TRAINS EFFECT
 
 
 
-class Bar(object):
+class Train(object):
     def __init__(self, rgb, width=4, speed=1, pos=0):
         self._rgb = rgb
         self._halfwidth = width // 2
@@ -184,7 +184,8 @@ class Bar(object):
         self._pos = pos
 
     def __repr__(self):
-        return "Bar(0x%06x,%d,%d)" % (grb_to_rgb(self._rgb), self._pos, self._halfwidth)
+        return ("Train(0x%06x,%d,%d)"
+                    % (grb_to_rgb(self._rgb), self._pos, self._halfwidth))
 
     def move(self):
         self._pos += self._speed
@@ -194,7 +195,7 @@ class Bar(object):
         if distance > self._halfwidth:
             return 0    # =BLACK
         intensity = int(((max(self._halfwidth - distance, 0) / self._halfwidth)
-                         ** BAR_FALLOFF) * 255)
+                         ** TRAIN_FALLOFF) * 255)
         return color_at_luma(self._rgb, intensity)
 
     def min(self):
@@ -205,50 +206,57 @@ class Bar(object):
 
 
 
-class NeopixelBars(NeopixelStrip):
-    """Bars are short lines which whizz along the strip in different
+class NeopixelTrains(NeopixelStrip):
+    """Trains are short lines which whizz along the strip in different
     colours and at different speeds.  When they overlap the colours are
     added together.
     """
 
-    def __init__(self, sm, colors, max_bars=MAX_BARS, **kwargs):
+    def __init__(self, sm, colors, max_trains=MAX_TRAINS, **kwargs):
         super().__init__(sm, **kwargs)
         self._colors = colors
-        self._max_bars = max_bars
+        self._max_trains = max_trains
 
     def __repr__(self):
-        return ("NeopixelBars(%s)"
-                    % ", ".join(("0x%06x" % grb_to_rgb(c)) for c in self._colors))
+        return ("NeopixelTrains(%s)"
+                    % ", ".join(("0x%06x" % grb_to_rgb(c))
+                                    for c in self._colors))
 
     def reinit(self):
         super().reinit()
-        self._bars = []
+        self._trains = []
 
     def is_finished(self):
-        return len(self._bars) == 0
+        return len(self._trains) == 0
 
     def render(self):
         for led in range(0, self._len):
             self._display[led] = 0
 
-        for bar in self._bars:
-            for led in range(max(floor(bar.min()), 0), min(ceil(bar.max()), self._len - 1)):
-                self._display[led] |= color_at_luma(bar.color_at(led), self._brightness)
+        for train in self._trains:
+            for led in range(max(floor(train.min()), 0),
+                             min(ceil(train.max()), self._len - 1)):
+                self._display[led] |= (
+                    color_at_luma(train.color_at(led), self._brightness))
 
     def move(self):
-        for bar in self._bars:
-            bar.move()
-        self._bars = [bar for bar in self._bars if bar.min() <= self._max]
-        if (not self._expired) and (self.num_bars() < self._max_bars):
+        for train in self._trains:
+            train.move()
+        self._trains = [train for train in self._trains
+                            if train.min() <= self._max]
+        if (not self._expired) and (self.num_trains() < self._max_trains):
             if randint(0, 10) > 8:
                 width = randint(8, 16)
-                self.add_bar(Bar(choice(self._colors), width=width, speed=choice([0.5, 1, 2]), pos=-width // 2))
+                self._trains.append(Train(choice(self._colors), width=width,
+                                          speed=choice([0.5, 1, 2]),
+                                          pos=-width // 2))
 
-    def num_bars(self):
-        return len(self._bars)
+    def num_trains(self):
+        return len(self._trains)
 
-    def add_bar(self, bar):
-        self._bars.append(bar)
+
+
+# STRIPES EFFECT
 
 
 
@@ -321,7 +329,8 @@ DARK_GREEN = grb(0, 63, 0)
 sm = StateMachine(0, ws2812, freq=8000000, sideset_base=Pin(0))
 sm.active(1)
 
-BARS_COLORS = [
+
+TRAINS_COLORS = [
     [BLUE, WHITE, CYAN],
     [RED, WHITE],
     [RED, GREEN],
@@ -330,8 +339,9 @@ BARS_COLORS = [
     # [RED, GREEN, BLUE],
     ]
 
-bars_strips = [
-    NeopixelBars(sm, colors=colors, brightness=191) for colors in BARS_COLORS]
+trains_strips = [
+    NeopixelTrains(sm, colors=colors, brightness=191)
+        for colors in TRAINS_COLORS]
 
 
 STRIPES_COLORS = [
@@ -343,10 +353,12 @@ STRIPES_COLORS = [
     ]
 
 stripes_strips = [
-    NeopixelStripes(sm, color1=c1, color2=c2, brightness=31) for c1, c2 in STRIPES_COLORS]
+    NeopixelStripes(sm, color1=c1, color2=c2, brightness=31)
+        for c1, c2 in STRIPES_COLORS]
 
 
-strips = bars_strips + stripes_strips
+# the strip effects we want to use are all of the ones set up
+strips = trains_strips + stripes_strips
 
 
 print("spi_Neopixel_Christmas starting...")
