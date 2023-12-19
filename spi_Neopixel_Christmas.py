@@ -20,7 +20,7 @@ from time import time
 
 
 # total number of visible LEDs
-VISIBLE_LEDS = 288
+VISIBLE_LEDS = 144 #288
 
 # number of overscan LEDs when building affects (so things slide onto
 # the end nicely)
@@ -38,9 +38,10 @@ led_running = Pin("LED", Pin.OUT)
 led_expired = Pin(15, Pin.OUT)
 
 
-MAX_TRAINS = 3
-TRAIN_FALLOFF = 2
+# overall brightness for display (0-255)
 BRIGHTNESS = 15
+
+# effect time range
 MIN_TIME = 10
 MAX_TIME = 20
 
@@ -175,6 +176,14 @@ class NeopixelStrip(object):
 
 
 
+MAX_TRAINS = 4
+TRAIN_FALLOFF = 2
+NEW_TRAIN_PROBABILITY_PCT = 80
+TRAIN_WIDTH_MIN = 8
+TRAIN_WIDTH_MAX = 16
+
+
+
 class Train(object):
     def __init__(self, rgb, width=4, speed=1, pos=0):
         self._rgb = rgb
@@ -250,8 +259,8 @@ class NeopixelTrains(NeopixelStrip):
         # if we have fewer than the maximum number of trains and not expired...
         if (not self._expired) and (self.num_trains() < self._max_trains):
             # ... there's a 2 in 11 chance we create a new train
-            if randint(0, 10) > 8:
-                width = randint(8, 16)
+            if randint(1, 100) <= NEW_TRAIN_PROBABILITY_PCT:
+                width = randint(TRAIN_WIDTH_MIN, TRAIN_WIDTH_MAX)
                 self._trains.append(Train(choice(self._colors), width=width,
                                           speed=choice([0.5, 1, 2]),
                                           pos=-width // 2))
@@ -262,6 +271,13 @@ class NeopixelTrains(NeopixelStrip):
 
 
 # STRIPES EFFECT
+
+
+
+STRIPES_WIDTH_MIN = 6
+STRIPES_WIDTH_MAX = 16
+STRIPES_WAIT_MIN = 20
+STRIPES_WAIT_MAX = 80
 
 
 
@@ -283,8 +299,10 @@ class NeopixelStripes(NeopixelStrip):
 
     def reinit(self):
         super().reinit()
-        self._width = self._init_width or randint(6, 16)
-        self._wait = self._init_wait or randint(20, 80)
+        self._width = (
+            self._init_width or randint(STRIPES_WIDTH_MIN, STRIPES_WIDTH_MAX))
+        self._wait = (
+            self._init_wait or randint(STRIPES_WAIT_MIN, STRIPES_WAIT_MAX))
         self._offset = 0
         for led in range(0, self._len):
             self._display[led] = self._next_color()
@@ -309,6 +327,10 @@ class NeopixelStripes(NeopixelStrip):
 
 
 # RAIN EFFECT
+
+
+
+NEW_RAIN_DROP_PCT = 15
 
 
 
@@ -387,7 +409,7 @@ class NeopixelRain(NeopixelStrip):
         # if we have fewer than max drops, add one if not expired
         if ((not self._expired)
             and (len(self._drops) < self._max_drops)
-            and (randint(0, 20) < 2)):
+            and (randint(1, 100) < NEW_RAIN_DROP_PCT)):
 
             self._drops.append(RainDrop(
                 pos=randint(self._min, self._max),
@@ -490,7 +512,9 @@ while True:
     strip = choice(strips)
     print("Displaying:", strip)
     strip.reinit()
-    expire_at = time() + randint(MIN_TIME, MAX_TIME)
+    effect_time = randint(MIN_TIME, MAX_TIME)
+    print("Effect running for %ds." % effect_time)
+    expire_at = time() + effect_time
     while True:
         remain = expire_at - time()
         if remain < 0:
