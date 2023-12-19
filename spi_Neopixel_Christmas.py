@@ -331,6 +331,8 @@ class NeopixelStripes(NeopixelStrip):
 
 
 NEW_RAIN_DROP_PCT = 15
+RAIN_MAX_DROPS = 5
+RAIN_MAX_SIZE = 12
 
 
 
@@ -381,18 +383,14 @@ class NeopixelRain(NeopixelStrip):
     rain falling into a puddle.
     """
 
-    def __init__(self, sm, max_drops, colors, max_size, *args, **kwargs):
+    def __init__(self, sm, colors, *args, **kwargs):
         super().__init__(sm, *args, **kwargs)
-        self._max_drops = max_drops
         self._colors = colors
-        self._max_size = max_size
 
     def __repr__(self):
-        return ("NeopixelRain(%d, %s, %d)"
-                    % (self._max_drops,
-                       ", ".join(("0x%06x" % grb_to_rgb(c))
-                                     for c in self._colors),
-                       self._max_size))
+        return ("NeopixelRain(%s)"
+                    % ", ".join(("0x%06x" % grb_to_rgb(c))
+                                     for c in self._colors))
 
     def reinit(self):
         super().reinit()
@@ -408,13 +406,13 @@ class NeopixelRain(NeopixelStrip):
 
         # if we have fewer than max drops, add one if not expired
         if ((not self._expired)
-            and (len(self._drops) < self._max_drops)
+            and (len(self._drops) < RAIN_MAX_DROPS)
             and (randint(1, 100) < NEW_RAIN_DROP_PCT)):
 
             self._drops.append(RainDrop(
                 pos=randint(self._min, self._max),
                 color=choice(self._colors),
-                max_size=randint(5, self._max_size)))
+                max_size=randint(5, RAIN_MAX_SIZE)))
 
     def render(self):
         for led in range(0, self._len):
@@ -497,8 +495,7 @@ RAIN_COLORS = [
 ]
 
 rain_strips = [
-    NeopixelRain(sm, brightness=191, max_drops=5, colors=c, max_size=12)
-        for c in RAIN_COLORS]
+    NeopixelRain(sm, brightness=191, colors=c) for c in RAIN_COLORS]
 
 
 # the strip effects we want to use are all of the ones set up
