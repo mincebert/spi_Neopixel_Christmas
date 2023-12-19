@@ -20,7 +20,7 @@ from time import time
 
 
 # total number of visible LEDs
-VISIBLE_LEDS = 144 #288
+VISIBLE_LEDS = 288
 
 # number of overscan LEDs when building affects (so things slide onto
 # the end nicely)
