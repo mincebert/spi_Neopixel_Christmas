@@ -331,7 +331,7 @@ class NeopixelStripes(NeopixelStrip):
 
 
 NEW_RAIN_DROP_PCT = 15
-RAIN_MAX_DROPS = 5
+RAIN_MAX_DROPS = 8
 RAIN_MAX_SIZE = 12
 
 
@@ -373,9 +373,9 @@ class RainDrop(object):
 
 
     def color_at_offset(self, offset):
-        return color_at_luma(
-                   self.color,
-                   self.current_size / self.max_size * 255)
+        intensity = int(((max(self.current_size - offset, 0) / self.max_size)
+                    ** TRAIN_FALLOFF) * 255)
+        return color_at_luma(self.color, intensity)
 
 
 class NeopixelRain(NeopixelStrip):
@@ -501,6 +501,7 @@ rain_effects = [
 # the strip effects we want to use are all of the ones set up
 effects = trains_effects + stripes_effects + rain_effects
 
+effects = rain_effects
 
 print("spi_Neopixel_Christmas starting...")
 
@@ -510,17 +511,28 @@ while True:
     print("Displaying effect:", effect)
     effect.reinit()
     effect_time = randint(MIN_TIME, MAX_TIME)
-    print("Effect running for %ds." % effect_time)
+    print("Running for %ds." % effect_time)
     expire_at = time() + effect_time
+
+    last_remain = None
     while True:
         remain = expire_at - time()
+
         if remain < 0:
+            # this effect has expired - has it also finished
             if effect.is_finished():
                 break
             else:
                 led_expired.value(1)
                 effect.set_expired()
+
         elif remain < 5:
-            led_expired.value(not remain % 2)
+            if (last_remain is None) or (remain < last_remain):
+                # less than 5s remaining - flash the LED
+                print("Expiring in %ds." % remain)
+                led_expired.value(not remain % 2)
+                last_remain = remain
+
         led_running.toggle()
+
         effect.cycle()
