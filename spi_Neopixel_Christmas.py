@@ -470,7 +470,7 @@ TRAINS_COLORS = [
     [RED, WHITE, BLUE],
 ]
 
-trains_strips = [
+trains_effects = [
     NeopixelTrains(sm, colors=colors, brightness=191)
         for colors in TRAINS_COLORS]
 
@@ -482,7 +482,7 @@ STRIPES_COLORS = [
     [DARK_GREEN, YELLOW],
 ]
 
-stripes_strips = [
+stripes_effects = [
     NeopixelStripes(sm, color1=c1, color2=c2, brightness=31)
         for c1, c2 in STRIPES_COLORS]
 
@@ -494,33 +494,33 @@ RAIN_COLORS = [
     [RED, YELLOW, DARK_GREEN, BLUE, CYAN, MAGENTA],
 ]
 
-rain_strips = [
+rain_effects = [
     NeopixelRain(sm, brightness=191, colors=c) for c in RAIN_COLORS]
 
 
 # the strip effects we want to use are all of the ones set up
-strips = trains_strips + stripes_strips + rain_strips
+effects = trains_effects + stripes_effects + rain_effects
 
 
 print("spi_Neopixel_Christmas starting...")
 
 while True:
     led_expired.value(0)
-    strip = choice(strips)
-    print("Displaying:", strip)
-    strip.reinit()
+    effect = choice(effects)
+    print("Displaying effect:", effect)
+    effect.reinit()
     effect_time = randint(MIN_TIME, MAX_TIME)
     print("Effect running for %ds." % effect_time)
     expire_at = time() + effect_time
     while True:
         remain = expire_at - time()
         if remain < 0:
-            if strip.is_finished():
+            if effect.is_finished():
                 break
             else:
                 led_expired.value(1)
-                strip.set_expired()
+                effect.set_expired()
         elif remain < 5:
             led_expired.value(not remain % 2)
         led_running.toggle()
-        strip.cycle()
+        effect.cycle()
