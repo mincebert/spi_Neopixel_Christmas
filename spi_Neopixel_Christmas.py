@@ -218,7 +218,8 @@ class NeopixelBars(NeopixelStrip):
 
     def __repr__(self):
         return ("NeopixelBars(%s)"
-                    % ", ".join(("0x%06x" % grb_to_rgb(c)) for c in self._colors))
+                    % ", ".join(("0x%06x" % grb_to_rgb(c)) for c
+                                    in self._colors))
 
     def reinit(self):
         super().reinit()
@@ -232,8 +233,10 @@ class NeopixelBars(NeopixelStrip):
             self._display[led] = 0
 
         for bar in self._bars:
-            for led in range(max(floor(bar.min()), 0), min(ceil(bar.max()), self._len - 1)):
-                self._display[led] |= color_at_luma(bar.color_at(led), self._brightness)
+            for led in range(max(floor(bar.min()), 0),
+                             min(ceil(bar.max()), self._len - 1)):
+                self._display[led] |= color_at_luma(bar.color_at(led),
+                                                    self._brightness)
 
     def move(self):
         for bar in self._bars:
@@ -242,7 +245,8 @@ class NeopixelBars(NeopixelStrip):
         if (not self._expired) and (self.num_bars() < self._max_bars):
             if randint(0, 10) > 8:
                 width = randint(8, 16)
-                self.add_bar(Bar(choice(self._colors), width=width, speed=choice([0.5, 1, 2]), pos=-width // 2))
+                self.add_bar(Bar(choice(self._colors), width=width,
+                                 speed=choice([0.5, 1, 2]), pos=-width // 2))
 
     def num_bars(self):
         return len(self._bars)
@@ -343,7 +347,8 @@ STRIPES_COLORS = [
     ]
 
 stripes_strips = [
-    NeopixelStripes(sm, color1=c1, color2=c2, brightness=31) for c1, c2 in STRIPES_COLORS]
+    NeopixelStripes(sm, color1=c1, color2=c2, brightness=31)
+        for c1, c2 in STRIPES_COLORS]
 
 
 strips = bars_strips + stripes_strips
