@@ -82,12 +82,24 @@ def grb(r, g, b):
 
 
 
-def grb_to_rgb(grb):
-    """Convert a 0GRB format colour into RGB format for printing in a
-    more conventional format.
+def grb_to_hex(grb):
+    """Convert a 0GRB format colour into a text string giving the colour in
+    RGB hex format for printing.
     """
 
-    return ((grb & 0xff00) << 8) | ((grb & 0xff0000) >> 8) | (grb & 0xff)
+    return ("0x%06x"
+                % (((grb & 0xff00) << 8)
+                   | ((grb & 0xff0000) >> 8)
+                   | (grb & 0xff)))
+
+
+
+def grb_list(grbs):
+    """Converts a list of colours in 0GRB format into a comma-separated
+    list for printing.
+    """
+
+    return '[' + ", ".join(grb_to_hex(c) for c in grbs) + ']'
 
 
 
@@ -211,8 +223,8 @@ class Train(object):
         self._pos = pos
 
     def __repr__(self):
-        return ("Train(0x%06x,%d,%d)"
-                    % (grb_to_rgb(self._rgb), self._pos, self._halfwidth))
+        return ("Train(color=%s, pos=%d, halfwidth=%d)"
+                    % (grb_to_hex(self._rgb), self._pos, self._halfwidth))
 
     def move(self):
         self._pos += self._speed
@@ -245,9 +257,7 @@ class NeopixelTrains(NeopixelStrip):
         self._max_trains = max_trains
 
     def __repr__(self):
-        return ("NeopixelTrains(%s)"
-                    % ", ".join(("0x%06x" % grb_to_rgb(c))
-                                    for c in self._colors))
+        return f"NeopixelTrains(colors={grb_list(self._colors)})"
 
     def reinit(self):
         super().reinit()
@@ -313,8 +323,8 @@ class NeopixelStripes(NeopixelStrip):
         self._init_wait = wait
 
     def __repr__(self):
-        return ("NeopixelStripes(0x%06x, 0x%06x)"
-                    % (grb_to_rgb(self._color1), grb_to_rgb(self._color2)))
+        return ("NeopixelStripes(%s, %s)"
+                    % (grb_to_hex(self._color1), grb_to_hex(self._color2)))
 
     def reinit(self):
         super().reinit()
@@ -369,8 +379,8 @@ class RainDrop(NeopixelPoint):
 
     def __repr__(self):
         return (
-            "RainDrop(%d, %06x, %d, %d)"
-                % (self.pos, grb_to_rgb(self.color), self.target_size,
+            "RainDrop(%d, %s, %d, %d)"
+                % (self.pos, grb_to_hex(self.color), self.target_size,
                    self.current_size))
 
 
@@ -409,9 +419,7 @@ class NeopixelRain(NeopixelStrip):
         self._colors = colors
 
     def __repr__(self):
-        return ("NeopixelRain(%s)"
-                    % ", ".join(("0x%06x" % grb_to_rgb(c))
-                                     for c in self._colors))
+        return f"NeopixelRain({grb_list(self._colors)})"
 
     def reinit(self):
         super().reinit()
@@ -463,6 +471,7 @@ class NeopixelRain(NeopixelStrip):
 
 STAR_MIN_LUMA = 0
 STAR_MAX_LUMA = 191
+STAR_LUMA_DELTA = 16
 STARS_MIN = 10
 STARS_MAX = 25
 
@@ -474,13 +483,13 @@ class Star(NeopixelPoint):
     def __init__(self, pos, color):
         super().__init__(pos, color)
 
-        self.luma_delta = 16
+        self.luma_delta = STAR_LUMA_DELTA
         self.luma = randint(STAR_MIN_LUMA, STAR_MAX_LUMA - 1)
 
 
     def __repr__(self):
-        return (f"Star(pos={self.pos}, color={grb_to_rgb(self.color)}, luma={self.luma}, ")
-                #"luma_delta={self.luma_delta})")
+        return (f"Star(pos={self.pos}, color={grb_to_hex(self.color)}, luma={self.luma}, "
+                + f"luma_delta={self.luma_delta})")
 
 
     def pos_and_color(self):
@@ -505,7 +514,7 @@ class NeopixelStars(NeopixelStrip):
 
 
     def __repr__(self):
-        return (f"NeopixelStars(colors={self._colors}, "
+        return (f"NeopixelStars(colors={grb_list(self._colors)}, "
                 + f"num_stars={self._num_stars})")
 
 
