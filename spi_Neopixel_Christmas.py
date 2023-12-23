@@ -336,10 +336,24 @@ RAIN_MAX_SIZE = 12
 
 
 
-class RainDrop(object):
-    def __init__(self, pos, color, max_size):
+class NeopixelPoint(object):
+    """Abstract class for representing a point with a colour along a
+    Neopixel strip.
+    """
+
+
+    def __init__(self, pos, color):
+        super().__init__()
         self.pos = pos
         self.color = color
+
+
+class RainDrop(NeopixelPoint):
+    "Class for representing a coloured raindrop splashing."
+
+
+    def __init__(self, pos, color, max_size):
+        super().__init__(pos, color)
         self.max_size = max_size
 
         self.current_size = 0
@@ -432,7 +446,7 @@ class NeopixelRain(NeopixelStrip):
 
 
     def wait(self):
-        sleep_ms(40)
+        sleep_ms(20)
 
 
 
@@ -501,7 +515,6 @@ rain_effects = [
 # the strip effects we want to use are all of the ones set up
 effects = trains_effects + stripes_effects + rain_effects
 
-effects = rain_effects
 
 print("spi_Neopixel_Christmas starting...")
 
