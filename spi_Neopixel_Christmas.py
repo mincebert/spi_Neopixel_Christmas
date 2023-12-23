@@ -621,7 +621,7 @@ stars_effects = [
 
 
 # the strip effects we want to use are all of the ones set up
-effects = trains_effects + stripes_effects + rain_effects
+effects = trains_effects + stripes_effects + rain_effects + stars_effects
 
 
 print("spi_Neopixel_Christmas starting...")
