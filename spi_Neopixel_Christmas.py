@@ -130,6 +130,12 @@ class NeopixelStrip(object):
         """
         self._expired = False
 
+    def clear(self, color=0):
+        "Clear the display buffer to a particular color, default black."
+
+        for pos in range(self._min, self._max + 1):
+            self._display[pos] = color
+
     def render(self):
         "Renders the current state of the effect into the display buffer."
         pass
@@ -169,6 +175,19 @@ class NeopixelStrip(object):
         self.display()
         self.move()
         self.wait()
+
+
+
+class NeopixelPoint(object):
+    """Abstract class for representing a point with a colour along a
+    Neopixel strip.
+    """
+
+
+    def __init__(self, pos, color):
+        super().__init__()
+        self.pos = pos
+        self.color = color
 
 
 
@@ -336,18 +355,6 @@ RAIN_MAX_SIZE = 12
 
 
 
-class NeopixelPoint(object):
-    """Abstract class for representing a point with a colour along a
-    Neopixel strip.
-    """
-
-
-    def __init__(self, pos, color):
-        super().__init__()
-        self.pos = pos
-        self.color = color
-
-
 class RainDrop(NeopixelPoint):
     "Class for representing a coloured raindrop splashing."
 
@@ -450,6 +457,82 @@ class NeopixelRain(NeopixelStrip):
 
 
 
+# STARS EFFECT
+
+
+
+STAR_MIN_LUMA = 0
+STAR_MAX_LUMA = 191
+STARS_MIN = 10
+STARS_MAX = 25
+
+
+
+class Star(NeopixelPoint):
+    "Class for a single twinkling star."
+
+    def __init__(self, pos, color):
+        super().__init__(pos, color)
+
+        self.luma_delta = 16
+        self.luma = randint(STAR_MIN_LUMA, STAR_MAX_LUMA - 1)
+
+
+    def __repr__(self):
+        return (f"Star(pos={self.pos}, color={grb_to_rgb(self.color)}, luma={self.luma}, ")
+                #"luma_delta={self.luma_delta})")
+
+
+    def pos_and_color(self):
+        return self.pos, color_at_luma(self.color, self.luma)
+
+
+    def twinkle(self):
+        self.luma = max(min(self.luma + self.luma_delta, STAR_MAX_LUMA), STAR_MIN_LUMA)
+        if ((self.luma <= STAR_MIN_LUMA)
+            or (self.luma >= STAR_MAX_LUMA)):
+            self.luma_delta = -self.luma_delta
+
+
+class NeopixelStars(NeopixelStrip):
+    "Effect class for twinkling random points along the strip."
+
+
+    def __init__(self, sm, colors, **kwargs):
+        super().__init__(sm, **kwargs)
+        self._colors = colors
+        self._num_stars = randint(STARS_MIN, STARS_MAX)
+
+
+    def __repr__(self):
+        return (f"NeopixelStars(colors={self._colors}, "
+                + f"num_stars={self._num_stars})")
+
+
+    def reinit(self):
+        self._stars = []
+        for _ in range(0, self._num_stars):
+            self._stars.append(Star(pos=randint(self._min, self._max),
+                                    color=choice(self._colors)))
+
+    def render(self):
+        self.clear()
+        for star in self._stars:
+            pos, color = star.pos_and_color()
+            self._display[pos] = color
+
+
+    def move(self):
+        for star in self._stars:
+            star.twinkle()
+
+
+    def wait(self):
+        sleep_ms(50)
+
+
+
+
 # --- colour constants ---
 
 
@@ -510,6 +593,16 @@ RAIN_COLORS = [
 
 rain_effects = [
     NeopixelRain(sm, brightness=191, colors=c) for c in RAIN_COLORS]
+
+
+STARS_COLORS = [
+    [CYAN, WHITE],
+    [BLUE, CYAN, WHITE],
+    [YELLOW, WHITE],
+]
+
+stars_effects = [
+    NeopixelStars(sm, brightness=191, colors=c) for c in STARS_COLORS]
 
 
 # the strip effects we want to use are all of the ones set up
