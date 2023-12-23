@@ -483,7 +483,11 @@ class Star(NeopixelPoint):
     def __init__(self, pos, color):
         super().__init__(pos, color)
 
+        # always start getting brighter
         self.luma_delta = STAR_LUMA_DELTA
+
+        # current luma is random between minimum and maximum so each
+        # star is at a different brightness
         self.luma = randint(STAR_MIN_LUMA, STAR_MAX_LUMA - 1)
 
 
@@ -497,6 +501,8 @@ class Star(NeopixelPoint):
 
 
     def twinkle(self):
+        # stars bounce between minimum and maximum luma by luma_delta
+        # each frame
         self.luma = max(min(self.luma + self.luma_delta, STAR_MAX_LUMA), STAR_MIN_LUMA)
         if ((self.luma <= STAR_MIN_LUMA)
             or (self.luma >= STAR_MAX_LUMA)):
